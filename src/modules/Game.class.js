@@ -4,8 +4,8 @@ class Game {
   constructor(initialState = Game.defaultState()) {
     this.score = 0;
     this.status = 'idle';
-    this.initialState = initialState;
-    this.state = this._copyState(initialState);
+    this.initialState = this.cloneState(initialState);
+    this.state = this.cloneState(initialState);
     this.size = initialState.length;
   }
 
@@ -34,40 +34,48 @@ class Game {
   }
 
   restart() {
-    this.state = this._copyState(this.initialState);
+    this.state = this.cloneState(this.initialState);
     this.score = 0;
     this.status = 'idle';
   }
 
   addRandomTile() {
-    const emptyTiles = this._getEmptyTiles();
+    const emptyTiles = this.getEmptyTiles();
 
     if (emptyTiles.length > 0) {
-      const randomIndex = Math.floor(Math.random() * emptyTiles.length);
-      const [row, col] = emptyTiles[randomIndex];
+      const [row, col] =
+        emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
 
       this.state[row][col] = Math.random() < 0.9 ? 2 : 4;
     }
   }
 
+  move(direction) {
+    if (this.status !== 'playing') {
+      return;
+    }
+
+    if (this.performMove(direction)) {
+      this.addRandomTile();
+      this.checkGameState();
+    }
+  }
+
   moveRight() {
-    this._performMove('right');
+    this.move('right');
   }
-
   moveLeft() {
-    this._performMove('left');
+    this.move('left');
   }
-
-  moveDown() {
-    this._performMove('down');
-  }
-
   moveUp() {
-    this._performMove('up');
+    this.move('up');
+  }
+  moveDown() {
+    this.move('down');
   }
 
   hasEmptyCells() {
-    return this._getEmptyTiles().length > 0;
+    return this.getEmptyTiles().length > 0;
   }
 
   canCombine() {
@@ -89,13 +97,11 @@ class Game {
   }
 
   checkGameState() {
-    for (let row = 0; row < this.size; row++) {
-      for (let col = 0; col < this.size; col++) {
-        if (this.state[row][col] === 2048) {
-          this.status = 'win';
+    for (const row of this.state) {
+      if (row.includes(2048)) {
+        this.status = 'win';
 
-          return;
-        }
+        return;
       }
     }
 
@@ -104,127 +110,92 @@ class Game {
     }
   }
 
-  _performMove(direction) {
-    if (this.status !== 'playing') {
-      return;
-    }
-
-    const moved = this._move(direction);
-
-    if (moved) {
-      this.addRandomTile();
-      this.checkGameState();
-    }
-  }
-
-  _move(direction) {
-    const originalState = this._copyState(this.state);
-
-    const moveRowLeft = (row) => {
-      const combined = this._combineRow(row);
-
-      return this._padRow(combined);
-    };
-
-    const moveRowRight = (row) => {
-      const reversedRow = [...row].reverse();
-      const combined = this._combineRow(reversedRow);
-
-      return this._padRow(combined).reverse();
-    };
-
-    const moveStateLeft = (state) => state.map((row) => moveRowLeft(row));
-    const moveStateRight = (state) => state.map((row) => moveRowRight(row));
+  performMove(direction) {
+    const previousState = this.cloneState(this.state);
 
     switch (direction) {
       case 'left':
-        this.state = moveStateLeft(this.state);
+        this.state = this.state.map((row) => this.padRow(this.combineRow(row)));
         break;
 
       case 'right':
-        this.state = moveStateRight(this.state);
+        this.state = this.state.map((row) => {
+          return this.padRow(this.combineRow([...row].reverse())).reverse();
+        });
         break;
 
-      case 'up':
-        this.state = this._transposeState(
-          moveStateLeft(this._transposeState(this.state)),
-        );
-        break;
+      case 'up': {
+        const transposed = this.transposeState(this.state);
+        const moved = transposed.map((row) => {
+          return this.padRow(this.combineRow(row));
+        });
 
-      case 'down':
-        this.state = this._transposeState(
-          moveStateRight(this._transposeState(this.state)),
-        );
+        this.state = this.transposeState(moved);
         break;
+      }
+
+      case 'down': {
+        const transposed = this.transposeState(this.state);
+        const moved = transposed.map((row) => {
+          return this.padRow(this.combineRow([...row].reverse())).reverse();
+        });
+
+        this.state = this.transposeState(moved);
+        break;
+      }
 
       default:
-        break;
+        return false;
     }
 
-    return !this._areStatesEqual(this.state, originalState);
+    return !this.areStatesEqual(previousState, this.state);
   }
 
-  _combineRow(row) {
-    const filteredRow = row.filter((n) => n !== 0);
+  combineRow(row) {
+    const filtered = row.filter((num) => num !== 0);
 
-    for (let i = 0; i < filteredRow.length - 1; i++) {
-      if (filteredRow[i] === filteredRow[i + 1]) {
-        filteredRow[i] *= 2;
-        filteredRow[i + 1] = 0;
-        this.score += filteredRow[i];
+    for (let i = 0; i < filtered.length - 1; i++) {
+      if (filtered[i] === filtered[i + 1]) {
+        filtered[i] *= 2;
+        this.score += filtered[i];
+        filtered[i + 1] = 0;
         i++;
       }
     }
 
-    return filteredRow.filter((n) => n !== 0);
+    return filtered.filter((num) => num !== 0);
   }
 
-  _padRow(row) {
+  padRow(row) {
     return [...row, ...Array(this.size - row.length).fill(0)];
   }
 
-  _copyState(state) {
+  cloneState(state) {
     return state.map((row) => [...row]);
   }
 
-  _areStatesEqual(state1, state2) {
-    for (let i = 0; i < this.size; i++) {
-      for (let j = 0; j < this.size; j++) {
-        if (state1[i][j] !== state2[i][j]) {
-          return false;
-        }
-      }
-    }
-
-    return true;
+  areStatesEqual(state1, state2) {
+    return state1.every((row, rIndex) => {
+      return row.every((cell, cIndex) => cell === state2[rIndex][cIndex]);
+    });
   }
 
-  _transposeState(state) {
-    const transposed = [];
-
-    for (let col = 0; col < this.size; col++) {
-      transposed[col] = [];
-
-      for (let row = 0; row < this.size; row++) {
-        transposed[col].push(state[row][col]);
-      }
-    }
-
-    return transposed;
+  transposeState(state) {
+    return state[0].map((_, colIndex) => state.map((row) => row[colIndex]));
   }
 
-  _getEmptyTiles() {
-    const emptyTiles = [];
+  getEmptyTiles() {
+    const empty = [];
 
     for (let row = 0; row < this.size; row++) {
       for (let col = 0; col < this.size; col++) {
         if (this.state[row][col] === 0) {
-          emptyTiles.push([row, col]);
+          empty.push([row, col]);
         }
       }
     }
 
-    return emptyTiles;
+    return empty;
   }
 }
 

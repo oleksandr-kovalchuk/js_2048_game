@@ -2,7 +2,6 @@
 
 const Game = require('../modules/Game.class');
 const game = new Game();
-
 const GRID_SIZE = 4;
 
 const cells = Array.from(document.querySelectorAll('.field-cell'));
@@ -34,25 +33,19 @@ const handleKeyDown = (e) => {
 
 const updateCellsView = () => {
   const state = game.getState();
-  let cellIndex = 0;
 
-  for (let row = 0; row < GRID_SIZE; row += 1) {
-    for (let col = 0; col < GRID_SIZE; col += 1) {
-      const cell = cells[cellIndex];
-      const cellValue = state[row][col];
+  cells.forEach((cell, index) => {
+    const row = Math.floor(index / GRID_SIZE);
+    const col = index % GRID_SIZE;
+    const cellValue = state[row][col];
 
-      cell.className = 'field-cell';
+    cell.className = 'field-cell';
+    cell.textContent = cellValue || '';
 
-      if (cellValue) {
-        cell.textContent = cellValue;
-        cell.classList.add(`field-cell--${cellValue}`);
-      } else {
-        cell.textContent = '';
-      }
-
-      cellIndex += 1;
+    if (cellValue) {
+      cell.classList.add(`field-cell--${cellValue}`);
     }
-  }
+  });
 };
 
 const updateScoreView = () => {
@@ -60,13 +53,12 @@ const updateScoreView = () => {
 };
 
 const updateGameStatusView = () => {
-  const currentStatus = game.getStatus();
+  // eslint-disable-next-line no-shadow
+  const status = game.getStatus();
 
-  if (currentStatus === 'win') {
+  if (status === 'win') {
     messageWinElement.classList.remove('hidden');
-  }
-
-  if (currentStatus === 'lose') {
+  } else if (status === 'lose') {
     messageLoseElement.classList.remove('hidden');
   }
 };
@@ -78,20 +70,20 @@ const updateView = () => {
 };
 
 const resetMessages = () => {
-  messageWinElement.classList.add('hidden');
-  messageLoseElement.classList.add('hidden');
-  messageStartElement.classList.add('hidden');
+  [messageWinElement, messageLoseElement, messageStartElement].forEach(
+    (msg) => {
+      msg.classList.add('hidden');
+    },
+  );
 };
 
 const startNewGame = () => {
   if (buttonStart.classList.contains('restart')) {
     game.restart();
   }
-
   game.start();
   resetMessages();
   updateView();
-
   buttonStart.textContent = 'Restart';
   buttonStart.className = 'button restart';
 };
