@@ -2,7 +2,6 @@
 
 const Game = require('../modules/Game.class');
 const game = new Game();
-const GRID_SIZE = 4;
 
 const cells = Array.from(document.querySelectorAll('.field-cell'));
 const buttonStart = document.querySelector('.button.start');
@@ -32,12 +31,10 @@ const handleKeyDown = (e) => {
 };
 
 const updateCellsView = () => {
-  const state = game.getState();
+  const state = game.getState().flat();
 
   cells.forEach((cell, index) => {
-    const row = Math.floor(index / GRID_SIZE);
-    const col = index % GRID_SIZE;
-    const cellValue = state[row][col];
+    const cellValue = state[index];
 
     cell.className = 'field-cell';
     cell.textContent = cellValue || '';
@@ -53,12 +50,13 @@ const updateScoreView = () => {
 };
 
 const updateGameStatusView = () => {
-  // eslint-disable-next-line no-shadow
-  const status = game.getStatus();
+  const gameStatus = game.getStatus();
 
-  if (status === 'win') {
+  if (gameStatus === 'win') {
     messageWinElement.classList.remove('hidden');
-  } else if (status === 'lose') {
+  }
+
+  if (gameStatus === 'lose') {
     messageLoseElement.classList.remove('hidden');
   }
 };
@@ -81,6 +79,7 @@ const startNewGame = () => {
   if (buttonStart.classList.contains('restart')) {
     game.restart();
   }
+
   game.start();
   resetMessages();
   updateView();
